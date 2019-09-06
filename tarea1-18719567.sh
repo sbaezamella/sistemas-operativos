@@ -51,30 +51,31 @@ case $1 in
   '-help')
 
     echo "Uso del script: bash tarea1-18719567.sh ó ./tarea1-18719567.sh [OPTION]...
-          Script correspondiente a la tarea 1 de Sistemas Operativos, el cual entrega
-          informacion un ordenador: hardware, procesos, puertos, memoria, disco, etc.
+    Script correspondiente a la tarea 1 de Sistemas Operativos, el cual entrega
+    informacion un ordenador: hardware, procesos, puertos, memoria, disco, etc.
 
-          Sin OPTION el script entregará el nombre del modelo del pc, version del kernel,
-          memoria y tiempo que ha estado encendido el ordenador.
+    Sin OPTION el script entregará el nombre del modelo del pc, version del kernel,
+    memoria y tiempo que ha estado encendido el ordenador.
 
-            -ps               procesos actuales (UID,PID,PPID,estado,comando)
-            -psBlocked        procesos con archivos bloqueados (PID,nombre,tipo de bloqueo)
-            -m                cantidad total RAM y cantidad disponible RAM (GB)
-            -tcp              conexiones TCP (direccion origen,direccion destino,estado)
-            -tcpStatus        mismas conexiones pero esta vez agrupada por estado
+      -ps               procesos actuales (UID,PID,PPID,estado,comando)
+      -psBlocked        procesos con archivos bloqueados (PID,nombre,tipo de bloqueo)
+      -m                cantidad total RAM y cantidad disponible RAM (GB)
+      -tcp              conexiones TCP (direccion origen,direccion destino,estado)
+      -tcpStatus        mismas conexiones pero esta vez agrupada por estado
 
-          Ayuda:
-            -help             desplega este texto y termina
+    Ayuda:
+      -help             desplega este texto y termina
 
-          Ejemplos:
+    Ejemplos:
 
-            ./tarea1-18719567.sh -ps
-            bash tarea1-18719567.sh -tcp
-            bash tarea1-18719567.sh"
+      ./tarea1-18719567.sh -ps
+      bash tarea1-18719567.sh -tcp
+      bash tarea1-18719567.sh"
   ;;
 
   *)
-    echo 'Argumento invalido'
+    echo "Uso: bash tarea1-18719567.sh ó ./tarea1-18719567.sh [OPTION]...
+Intente './tarea1-18719567.sh -help' para mas informacion"
   ;;
 
 esac
