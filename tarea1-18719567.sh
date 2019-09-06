@@ -3,6 +3,42 @@
 # Sebastián Andrés Baeza Mella
 # 18.719.567-5
 
+usage() { printf "%s" "\
+Uso del script: bash tarea1-18719567.sh ó ./tarea1-18719567.sh [OPTION]...
+Script correspondiente a la tarea 1 de Sistemas Operativos, la cual entrega
+información un ordenador: hardware, procesos, puertos, memoria, disco, etc.
+
+Sin OPTION el script entregará el nombre del modelo del pc, version del kernel,
+memoria y tiempo que ha estado encendido el ordenador.
+
+  -ps               procesos actuales (UID,PID,PPID,estado,comando)
+  -psBlocked        procesos con archivos bloqueados (PID,nombre,tipo de bloqueo)
+  -m                cantidad total RAM y cantidad disponible RAM (GB)
+  -tcp              conexiones TCP (direccion origen,direccion destino,estado)
+  -tcpStatus        mismas conexiones pero esta vez agrupada por estado
+
+Ayuda:
+  -help             desplega este texto y termina
+
+Ejemplos:
+
+  ./tarea1-18719567.sh -ps
+  bash tarea1-18719567.sh -tcp
+  bash tarea1-18719567.sh
+"
+exit 1
+}
+
+error() { printf "%s" "\
+Error: Argumento inválido
+Uso: bash tarea1-18719567.sh ó ./tarea1-18719567.sh [OPTION]...
+Intente './tarea1-18719567.sh -help' para mas informacion
+"
+exit 1
+}
+
+
+
 
 case $1 in
   '')
@@ -22,7 +58,7 @@ case $1 in
       dir="/proc/$pid"
       if [ -d "$dir" ]; then
         uid="$(cat /proc/$pid/status | grep Uid | awk '{print $2}')"
-        user="$(cat /etc/passwd | grep -w $uid | awk -F: '{print $1}')"
+        username="$(cat /etc/passwd | grep -w $uid | awk -F: '{print $1}')"
         ppid="$(cat /proc/$pid/status | grep PPid | awk '{print $2}')"
         status="$(cat /proc/$pid/status | grep State | awk '{print $2}')"
         cmd="$(cat /proc/$pid/comm)"
@@ -42,41 +78,15 @@ case $1 in
           'P') status='Parked' ;;
         esac
 
-        printf "\t%-14s %-10d %-10d %-14s %-10s\n" "$user" "$pid" "$ppid" "$status" "$cmd"
+        printf "\t%-14s %-10d %-10d %-14s %-10s\n" "$username" "$pid" "$ppid" "$status" "$cmd"
       fi
     done
     # echo "counter: $i"
   ;;
 
-  '-help')
+  '-help') usage ;;
 
-    echo "Uso del script: bash tarea1-18719567.sh ó ./tarea1-18719567.sh [OPTION]...
-    Script correspondiente a la tarea 1 de Sistemas Operativos, el cual entrega
-    informacion un ordenador: hardware, procesos, puertos, memoria, disco, etc.
-
-    Sin OPTION el script entregará el nombre del modelo del pc, version del kernel,
-    memoria y tiempo que ha estado encendido el ordenador.
-
-      -ps               procesos actuales (UID,PID,PPID,estado,comando)
-      -psBlocked        procesos con archivos bloqueados (PID,nombre,tipo de bloqueo)
-      -m                cantidad total RAM y cantidad disponible RAM (GB)
-      -tcp              conexiones TCP (direccion origen,direccion destino,estado)
-      -tcpStatus        mismas conexiones pero esta vez agrupada por estado
-
-    Ayuda:
-      -help             desplega este texto y termina
-
-    Ejemplos:
-
-      ./tarea1-18719567.sh -ps
-      bash tarea1-18719567.sh -tcp
-      bash tarea1-18719567.sh"
-  ;;
-
-  *)
-    echo "Uso: bash tarea1-18719567.sh ó ./tarea1-18719567.sh [OPTION]...
-Intente './tarea1-18719567.sh -help' para mas informacion"
-  ;;
+  *) error ;;
 
 esac
 
