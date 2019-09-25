@@ -1,12 +1,13 @@
 #!/bin/bash
 
+# Tarea 1 Sistemas Operativos - Bash y awk
 # Sebastián Andrés Baeza Mella
 # 18.719.567-5
 
 usage() { printf "%s" "\
 Uso del script: bash tarea1-18719567.sh ó ./tarea1-18719567.sh [OPTION]...
 Script correspondiente a la tarea 1 de Sistemas Operativos, la cual entrega
-información un ordenador: hardware, procesos, puertos, memoria, disco, etc.
+información del ordenador: hardware, procesos, puertos, memoria, disco, etc.
 
 Sin OPTION el script entregará el nombre del modelo del pc, version del kernel,
 memoria y tiempo que ha estado encendido el ordenador.
@@ -37,31 +38,36 @@ Intente './tarea1-18719567.sh -help' para mas informacion
 exit 1
 }
 
-
-
-
 case $1 in
   '')
 
-    MODEL_NAME="$(cat /proc/cpuinfo | grep "model name" | head -1 | awk '{print $4,$5,$6,$7,$9}')"
-    KERNEL_VERSION="$(cat /proc/version | awk '{print $1,$2,$3}')"
-    MEMORY="$(cat /proc/meminfo | grep MemTotal | awk '{print $2,$3}')"
-    UPTIME="$(cat /proc/uptime | awk '{printf "%.4f",$1/86400}')"
+    model_name="$(cat /proc/cpuinfo | grep "model name" | head -1 | awk '{print $4,$5,$6,$7,$9}')"
+    kernel_version="$(cat /proc/version | awk '{print $1,$2,$3}')"
+    memory="$(cat /proc/meminfo | grep MemTotal | awk '{print $2,$3}')"
+    uptime="$(cat /proc/uptime | awk '{printf "%.4f",$1/86400}')"
 
-    echo -e "ModelName: $MODEL_NAME\nKernelVersion: $KERNEL_VERSION\nMemory (kB): $MEMORY\nUptime (Dias): $UPTIME dia(s)"
-    ;;
+    echo -e "ModelName: $model_name\nKernelVersion: $kernel_version\nMemory (kB): $memory\nUptime (Dias): $uptime dia(s)"
+
+  ;;
 
   '-ps')
 
     printf "\t%-14s %-10s %-10s %-14s %-10s\n" "UID" "PID" "PPID" "Status" "CMD"
-    for pid in $(ls -l /proc | grep ^d | awk '$9 ~ /^[0-9]+$/ {print $9}'); do
-      dir="/proc/$pid"
-      if [ -d "$dir" ]; then
-        uid="$(cat /proc/$pid/status | grep Uid | awk '{print $2}')"
+
+    cd /proc
+    numeros='^[0-9]+$'
+    for carpeta in *; do
+
+      if [[ -d $carpeta ]] && [[ $carpeta =~ $numeros ]]; then
+
+        cd $carpeta
+        uid="$(cat status | grep Uid | awk '{print $2}')"
         username="$(cat /etc/passwd | grep -w $uid | awk -F: '{print $1}')"
-        ppid="$(cat /proc/$pid/status | grep PPid | awk '{print $2}')"
-        status="$(cat /proc/$pid/status | grep State | awk '{print $2}')"
-        cmd="$(cat /proc/$pid/comm)"
+        ppid="$(cat status | grep PPid | awk '{print $2}')"
+        status="$(cat status | grep State | awk '{print $2}')"
+        cmd="$(cat comm)"
+        pid=$carpeta
+        cd ..
 
         case $status in
           'R') status='Running' ;;
@@ -82,6 +88,52 @@ case $1 in
       fi
     done
     # echo "counter: $i"
+  ;;
+
+  '-psBlocked')
+
+    printf "\t%-10s %-17s %-10s\n" "PID" "NOMBRE PROCESO" "TIPO"
+
+    while IFS= read -r line
+    do
+      echo "$(read -r line)"
+
+      #pid="$f5"
+      #nombre="$cat $pid/comm"
+      #tipo="$lock | awk '{print $2}'"
+      #echo "$line"
+      #if [[ ! -z "$($locks | grep -w $pid)" ]]; then
+       #   echo "not empty $pid"
+          #lock="$($locks | grep $pid | head -1)"
+          #nombre="$cat /proc/$pid/comm"
+          #tipo="$($lock | awk '{print $2}')"
+
+      #printf "\t%-10s %-17s %-10s\n" "$pid" "$nombre" "$tipo"
+
+      #fi
+
+
+
+
+    done < <(cat  /proc/locks)
+
+  ;;
+
+  '-m')
+
+    printf "\t%-10s %-10s\n" "Total" "Available"
+    total="$(cat /proc/meminfo | grep "MemTotal" | awk '{printf "%.1f",$2/1048576}')"
+    available="$(cat /proc/meminfo | grep "MemAvailable" | awk '{printf "%.1f",$2/1048576}')"
+    printf "\t%4s %12s\n" "$total" "$available"
+
+  ;;
+
+  '-tcp')
+
+    printf "\t%-20s %-20s %-20s\n" "Source:Port" "Destination:Port" "Status"
+
+    #for h in $(awk 'NR>1{print $2,$3}')
+
   ;;
 
   '-help') usage ;;
