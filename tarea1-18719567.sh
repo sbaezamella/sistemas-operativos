@@ -63,18 +63,19 @@ convert_then_parse_ip() {
   echo "$string_ip"
 }
 
+# Función para imprimir todas las direcciones ip con protocolo de transmision de control (TCP/IP)
 tcp_function() {
 
-  local result=""
   tail --lines=+2 $1 | while read line; do
 
+    # Se extraen informacion primordial desde /proc/net/tcp
     local dir_local=$(echo $line | awk '{ print $2 }' | awk -F: '{ print $1 }')
     local puerto_local=$(echo $line | awk '{ print $2 }' | awk -F: '{ print $2 }')
     local dir_remota=$(echo $line | awk '{ print $3 }' | awk -F: '{ print $1 }')
     local puerto_remoto=$(echo $line | awk '{ print $3 }' | awk -F: '{ print $2 }')
     local state=$(echo $line | awk '{ print $4 }')
 
-    case $(echo "ibase=16; $state" | bc) in
+    case $(echo "ibase=16; $state" | bc) in # Se asigna el state segun su hex
       '1') state=TCP_ESTABLISHED ;;
       '2') state=TCP_SYN_SENT ;;
       '3') state=TCP_SYN_RECV ;;
@@ -97,6 +98,9 @@ tcp_function() {
   done
 }
 
+# Se utiliza un bloque de instrucción case para las posibles entradas o argumentas del script
+# Se testea con '', '-ps', '-psBlocked', '-m', '-tcp', 'tcpStatus', '-help', *
+# Éste último es para cubrir los demas casos, arroja un texto amigable de error con sugerencias de como usar el script
 case $1 in
 
   '')
@@ -118,7 +122,7 @@ case $1 in
 
   '-ps')
 
-    printf "%-18s %-10s %-10s %-14s %-10s\n" "UID" "PID" "PPID" "Status" "CMD"
+    printf "%-18s %-10s %-10s %-14s %-s\n" "UID" "PID" "PPID" "Status" "CMD"
     cd /proc
     numeros="^[0-9]+$"
 
@@ -149,21 +153,21 @@ case $1 in
           'T') status=Stopped ;;
         esac
 
-        printf "%-18s %-10d %-10d %-14s %-10s\n" "$username" "$pid" "$ppid" "$status" "$cmd"
+        printf "%-18s %-10d %-10d %-14s %-s\n" "$username" "$pid" "$ppid" "$status" "$cmd"
       fi
     done
   ;;
 
   '-psBlocked')
 
-    printf "%-10s %-17s %-10s\n" "PID" "NOMBRE PROCESO" "TIPO"
+    printf "%-10s %-17s %-s\n" "PID" "NOMBRE PROCESO" "TIPO"
 
     awk '!a[$5]++ { print $2, $5 }' /proc/locks | while read line; do
 
     tipo=$(echo $line | awk '{ print $1 }')
     pid=$(echo $line | awk '{ print $2 }')
     nombre=$(cat /proc/$pid/comm)
-    printf "%-10d %-17s %-10s\n" "$pid" "$nombre" "$tipo"
+    printf "%-10d %-17s %-s\n" "$pid" "$nombre" "$tipo"
 
     done
   ;;
@@ -173,7 +177,7 @@ case $1 in
     # Del archivo /proc/meminfo se busca por regex "MemTotal" y se guarda en variable total
     # Luego se busca por regex "MemAvailable" y se imprime
     awk '/MemTotal/ { total=$2 }
-         /MemAvailable/ { printf "%-10s %-10s\n", "Total", "Available"
+         /MemAvailable/ { printf "%-10s %-s\n", "Total", "Available"
                           printf "%4.1f %12.1f\n", total/1048576, $2/1048576 }' /proc/meminfo
   ;;
 
@@ -186,9 +190,8 @@ case $1 in
 
   '-tcpStatus')
 
-    printf "%-25s %-25s %-25s\n" "Source:Port" "Destination:Port" "Status"
+    printf "%-25s %-25s %-s\n" "Source:Port" "Destination:Port" "Status"
     result=$(tcp_function /proc/net/tcp)
-
     printf "%s\n" "$result" | sort -k 3,3
 
   ;;
