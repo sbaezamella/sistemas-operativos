@@ -41,15 +41,78 @@ Intente './tarea1-18719567.sh -help' para mas información"
 exit 1
 }
 
+# Funcion que convierte y luego parsea la ip de entrada de la forma 0100007F:0277
+# Los argumentos se trabajan de manera similar a cuando se pasan argumentos por linea de comandos a un script
+# Dentro de la funcion son accesibles con $1, $2, $3, ..., etc.
+# Pide dos argumentos, la dirección y el puerto, esto es:
+# convert_then_parse_ip 01000007F 0277
+convert_then_parse_ip() {
+  local string_ip="" # String a retornar
+  for i in {6..0..2} # Valores de i disminuyes [6, 4, 0, 2]
+  do
+    string_ip+=$(echo $((16#${1:$i:2}))) # $1 corresponde al primer argumento de la funcion
+                                          # Cada iteracion selecciona 2 caracteres hacia la derecha. Ej: 0100007F:6:2 -> 7F
+                                          # Luego se convierte de hex a decimal con 'echo $(( 16#7F ))' -> 127 y se van concatenando
+    if [ $i -gt 1 ]; then # Sólo cuando i sea mayor a 1 se concatena un '.' quedando 127.0.0.1
+      string_ip+='.'
+    fi
+  done
+  string_ip+=':'$(echo $((16#$2))) # Se convierte de hex a dec el puerto y se concatena con un ':' antes
+                                   # 'echo (( 16#0277 ))' -> 631
+                                   # Resultado string_ip=127.0.0.1:631
+  echo "$string_ip"
+}
+
+tcp_function() {
+
+  local result=""
+  tail --lines=+2 $1 | while read line; do
+
+    local dir_local=$(echo $line | awk '{ print $2 }' | awk -F: '{ print $1 }')
+    local puerto_local=$(echo $line | awk '{ print $2 }' | awk -F: '{ print $2 }')
+    local dir_remota=$(echo $line | awk '{ print $3 }' | awk -F: '{ print $1 }')
+    local puerto_remoto=$(echo $line | awk '{ print $3 }' | awk -F: '{ print $2 }')
+    local state=$(echo $line | awk '{ print $4 }')
+
+    case $(echo "ibase=16; $state" | bc) in
+      '1') state=TCP_ESTABLISHED ;;
+      '2') state=TCP_SYN_SENT ;;
+      '3') state=TCP_SYN_RECV ;;
+      '4') state=TCP_FIN_WAIT1 ;;
+      '5') state=TCP_FIN_WAIT2 ;;
+      '6') state=TCP_TIME_WAIT ;;
+      '7') state=TCP_CLOSE ;;
+      '8') state=TCP_CLOSE_WAIT ;;
+      '9') state=TCP_LAST_ACK ;;
+      '10') state=TCP_LISTEN ;;
+      '11') state=TCP_CLOSING ;;
+      '12') state=TCP_NEW_SYN_RECV ;;
+    esac
+
+    local num_ip_local=$(convert_then_parse_ip $dir_local $puerto_local)
+    local num_ip_remota=$(convert_then_parse_ip $dir_remota $puero_remoto)
+
+    printf '%-25s %-25s %-s\n' "$num_ip_local" "$num_ip_remota" "$state"
+
+  done
+}
+
 case $1 in
 
   '')
 
-    model_name=$(cat /proc/cpuinfo | grep "model name" | head -1 | awk '{print $4,$5,$6,$7,$9}')
-    kernel_version=$(cat /proc/version | awk '{print $1,$2,$3}')
-    memory=$(cat /proc/meminfo | grep MemTotal | awk '{print $2,$3}')
-    uptime=$(cat /proc/uptime | awk '{printf "%.4f",$1/86400}')
-    printf "%s\n" "ModelName: $model_name" "KernelVersion: $kernel_version" "Memory (kB): $memory" "Uptime (Dias): $uptime dia(s)"
+    # Se utiliza awk para realizar la acción detallada cuando el patrón (expresión regular)
+    # reconoce una secuencia de carácteres dentro del archivo otorgado
+    # Ejemplo: awk '/pattern/ { do something }' file.txt
+    model_name=$(awk '/model name/ { print $4, $5, $6, $7, $9; exit; }' /proc/cpuinfo) # Se utiliza exit para obtener solo la primera coincidencia
+    kernel_version=$(awk '{ print $1, $2, $3 }' /proc/version) # Equivalente a $(cat /proc/version | awk '{print $1,$2,$3}')
+    memory=$(awk '/MemTotal/ { print $2, $3 }' /proc/meminfo)
+    uptime=$(awk '{ printf "%.4f", $1/86400 }' /proc/uptime) # Formatea $1, el cual es float, hasta 4 decimales
+    printf "%s\n" \
+    "ModelName: $model_name" \
+    "KernelVersion: $kernel_version" \
+    "Memory (kB): $memory" \
+    "Uptime (Dias): $uptime dia(s)"
 
   ;;
 
@@ -64,11 +127,15 @@ case $1 in
       if [[ -d $carpeta ]] && [[ $carpeta =~ $numeros ]]; then
 
         cd $carpeta
-        uid=$(cat status | grep Uid | awk '{print $2}')
-        username=$(cat /etc/passwd | grep -w $uid | awk -F: '{print $1}')
-        #username=$(awk -F: -v id '$3==id {print $1}' /etc/passwd)
-        ppid=$(cat status | grep PPid | awk '{print $2}')
-        status=$(cat status | grep State | awk '{print $2}')
+        uid=$(awk '/Uid/ { print $2 }' status)
+
+        # Separar lineas por ":" del archivo /etc/passwd. Asignar $uid a la variable interna de awk id
+        # para checkear que el tercer campo es igual al uid. Debido a casos extremos donde el uid exista
+        # en una linea y como gid en otra.
+        username=$(awk -F: --assign id=$uid '$3==id { print $1 }' /etc/passwd)
+
+        ppid=$(awk '/PPid/ { print $2 }' status)
+        status=$(awk '/State/ { print $2 }' status)
         cmd=$(cat comm)
         pid=$carpeta
         cd ..
@@ -79,8 +146,7 @@ case $1 in
           'D') status=Disk sleep ;;
           'Z') status=Zombie ;;
           'I') status=Idle ;;
-          'T') status='Traced or stopped' ;;
-          'W') status=Paging ;;
+          'T') status=Stopped ;;
         esac
 
         printf "%-18s %-10d %-10d %-14s %-10s\n" "$username" "$pid" "$ppid" "$status" "$cmd"
@@ -92,43 +158,38 @@ case $1 in
 
     printf "%-10s %-17s %-10s\n" "PID" "NOMBRE PROCESO" "TIPO"
 
-    cat /proc/locks | while read line; do
+    awk '!a[$5]++ { print $2, $5 }' /proc/locks | while read line; do
 
-    pid=$(echo $line | awk '{print $5}')
+    tipo=$(echo $line | awk '{ print $1 }')
+    pid=$(echo $line | awk '{ print $2 }')
     nombre=$(cat /proc/$pid/comm)
-    tipo=$(echo $line | awk '{print $2}')
-    printf "%-10s %-17s %-10s\n" "$pid" "$nombre" "$tipo"
+    printf "%-10d %-17s %-10s\n" "$pid" "$nombre" "$tipo"
 
     done
   ;;
 
   '-m')
 
-    printf "%-10s %-10s\n" "Total" "Available"
-    total=$(cat /proc/meminfo | grep "MemTotal" | awk '{printf "%.1f",$2/1048576}')
-    available=$(cat /proc/meminfo | grep "MemAvailable" | awk '{printf "%.1f",$2/1048576}')
-    printf "%4s %12s\n" "$total" "$available"
+    # Del archivo /proc/meminfo se busca por regex "MemTotal" y se guarda en variable total
+    # Luego se busca por regex "MemAvailable" y se imprime
+    awk '/MemTotal/ { total=$2 }
+         /MemAvailable/ { printf "%-10s %-10s\n", "Total", "Available"
+                          printf "%4.1f %12.1f\n", total/1048576, $2/1048576 }' /proc/meminfo
   ;;
 
   '-tcp')
 
-    # printf "%-20s %-20s %-20s\n" "Source:Port" "Destination:Port" "Status"
-    awk 'BEGIN {printf "%-20s %-20s %-20s\n","Source:Port","Destination:Port","Status"}
-    { NR>1 }
-    { print $2 }' /proc/net/tcp
-    cat /proc/net/tcp | while read line; do
+    printf "%-25s %-25s %-s\n" "Source:Port" "Destination:Port" "Status"
+    tcp_function /proc/net/tcp
 
-    direccion_local=$(echo $line | awk '{print $2}' | awk -F: '{print $1}')
-    puerto_local=$(echo $line | awk '{print $2}' | awk -F: '{print $2}')
-    direccion_remota=$(echo $line | awk '{print $3}' | awk -F: '{print $1}')
-    puerto_remoto=$(echo $line | awk '{print $3}' | awk -F: '{print $2}')
-
-    printf "%-20s %-20s %-20s\n" "$direccion_local:$puerto_local" "$direccion_remota:$puerto_remoto" ""
-
-    done
   ;;
 
   '-tcpStatus')
+
+    printf "%-25s %-25s %-25s\n" "Source:Port" "Destination:Port" "Status"
+    result=$(tcp_function /proc/net/tcp)
+
+    printf "%s\n" "$result" | sort -k 3,3
 
   ;;
 
