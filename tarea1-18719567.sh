@@ -191,8 +191,13 @@ case $1 in
   '-tcpStatus')
 
     printf "%-25s %-25s %-s\n" "Source:Port" "Destination:Port" "Status"
-    result=$(tcp_function /proc/net/tcp)
-    printf "%s\n" "$result" | sort -k 3,3
+    tcp_function /proc/net/tcp | sort -b -k 3,3
+
+  ;;
+
+  '-frag')
+
+
 
   ;;
 
@@ -201,10 +206,3 @@ case $1 in
   *) error ;;
 
 esac
-
-
-
-
-
-
-
