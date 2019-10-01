@@ -19,6 +19,7 @@ memoria y tiempo que ha estado encendido el ordenador/servidor.
   -m                Cantidad total de RAM y cantidad disponible de RAM (GB)
   -tcp              Conexiones TCP (ip:puerto origen,ip:puerto destino,estado)
   -tcpStatus        Conexiones TCP agrupadas por estado
+  -frag             Espacio separado por el tamaño de los fragmentos en Mb
 
 Ayuda:
   -help             Imprime este texto y finaliza
@@ -197,7 +198,34 @@ case $1 in
 
   '-frag')
 
+    printf "%-10s\t %-8s %-8s %-8s %-8s %-8s %-8s %-8s %-8s %-8s %-8s %s\n" "Tamaño" "4KB" "8KB" "16Kb" "32KB" "64KB" "128KB" "256KB" "512KB" "1MB" "2MB" "4MB"
 
+    declare -a chunk=()
+
+    while read line
+    do
+      read -ra fields <<< "$line"
+      for i in {4..14}
+      do
+        pos=$(bc <<< $i-4)
+        if [ -z ${chunk[$pos]} ]; then
+          chunk[$pos]=$(bc <<< "${fields[$i]}")
+        else
+          chunk[$pos]=$(bc <<< "${fields[$i]} + ${chunk[$pos]}")
+        fi
+      done
+    done <  <(cat /proc/buddyinfo)
+
+    for i in {0..10}
+    do
+      if [ $i -lt 8 ]; then
+        chunk[$i]=$(bc -l <<< "scale=2;${chunk[$i]}*4*2^$i/1024")
+      else
+        chunk[$i]=$(bc <<< "${chunk[$i]}*4*2^$i/1024")
+      fi
+    done
+
+    printf "%10s\t %-8s %-8s %-8s %-8s %-8s %-8s %-8s %-8s %-8s %-8s %s\n" "Espacio Libre" "${chunk[0]}Mb" "${chunk[1]}Mb" "${chunk[2]}Mb" "${chunk[3]}Mb" "${chunk[4]}Mb" "${chunk[5]}Mb" "${chunk[6]}Mb" "${chunk[7]}Mb" "${chunk[8]}Mb" "${chunk[9]}Mb" "${chunk[10]}Mb"
 
   ;;
 
